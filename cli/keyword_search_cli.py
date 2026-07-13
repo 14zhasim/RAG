@@ -26,11 +26,12 @@ def main() -> None:
                 print(f"{i}. {res['title']} ({res['id']})")
 
         case "build":
+            print("Building inverted index...")
             build_command()
-
+            print("Inverted index built successfully.")
         case "tf":
-            print(tf_command(args.doc_id, args.term))
-            
+            tf = tf_command(args.doc_id, args.term)
+            print(f"Term frequency of '{args.term}' in document '{args.doc_id}': {tf}")            
         case _:
             parser.print_help()
 

@@ -3,21 +3,23 @@ import string
 from nltk.stem import PorterStemmer
 from pathlib import Path
 import pickle
-from collections import Counter
+from collections import Counter, defaultdict
+
+CACHE_DIR = Path("cache")
 
 class InvertedIndex:
     def __init__(self):
-        self.index = {} # map tokens to sets of document IDs
+        self.index = defaultdict(set) # map tokens to sets of document IDs
         self.docmap = {} # map document ID to full document object
-        self.term_frequencies = {}
+        self.term_frequencies = defaultdict(Counter)
+        self.index_path = CACHE_DIR / "index.pkl"
+        self.docmap_path = CACHE_DIR / "docmap.pkl"
+        self.tf_path = CACHE_DIR / "term_frequencies.pkl"
     
     def __add_document(self, doc_id, text):
         tokens = preprocess_text(text)
-        self.term_frequencies[doc_id] = Counter()
         
         for token in tokens:
-            if token not in self.index:
-                self.index[token] = set()
             self.index[token].add(doc_id)
             self.term_frequencies[doc_id][token] += 1
     
@@ -35,28 +37,25 @@ class InvertedIndex:
             self.__add_document(doc_id, f"{movie['title']} {movie['description']}")
 
     def save(self):
-        cache_dir = Path("cache")
-        cache_dir.mkdir(exist_ok=True)
+        CACHE_DIR.mkdir(exist_ok=True)
 
-        with open(cache_dir / "index.pkl", "wb") as f:
+        with open(self.index_path, "wb") as f:
             pickle.dump(self.index, f)
 
-        with open(cache_dir / "docmap.pkl", "wb") as f:
+        with open(self.docmap_path, "wb") as f:
             pickle.dump(self.docmap, f)
         
-        with open(cache_dir / "term_frequencies.pkl", "wb") as f:
+        with open(self.tf_path, "wb") as f:
             pickle.dump(self.term_frequencies, f)
     
     def load(self):
-        cache_dir = Path("cache")
-
-        with open(cache_dir / "index.pkl", "rb") as f:        
+        with open(self.index_path, "rb") as f:        
             self.index = pickle.load(f)
 
-        with open(cache_dir / "docmap.pkl", "rb") as f:        
+        with open(self.docmap_path, "rb") as f:        
             self.docmap = pickle.load(f)
 
-        with open(cache_dir / "term_frequencies.pkl", "rb") as f:
+        with open(self.tf_path, "rb") as f:
             self.term_frequencies = pickle.load(f)
 
 stemmer = PorterStemmer()
