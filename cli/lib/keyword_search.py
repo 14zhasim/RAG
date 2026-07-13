@@ -3,21 +3,29 @@ import string
 from nltk.stem import PorterStemmer
 from pathlib import Path
 import pickle
+from collections import Counter
 
 class InvertedIndex:
     def __init__(self):
         self.index = {} # map tokens to sets of document IDs
         self.docmap = {} # map document ID to full document object
+        self.term_frequencies = {}
     
     def __add_document(self, doc_id, text):
         tokens = preprocess_text(text)
+        self.term_frequencies[doc_id] = Counter()
+        
         for token in tokens:
             if token not in self.index:
                 self.index[token] = set()
             self.index[token].add(doc_id)
+            self.term_frequencies[doc_id][token] += 1
     
     def get_documents(self, term):
         return sorted(self.index.get(term, set()))
+
+    def get_tf(self, doc_id, term):
+        return self.term_frequencies.get(doc_id, Counter()).get(term, 0)
 
     def build(self):
         movies = load_movies()
@@ -35,6 +43,9 @@ class InvertedIndex:
 
         with open(cache_dir / "docmap.pkl", "wb") as f:
             pickle.dump(self.docmap, f)
+        
+        with open(cache_dir / "term_frequencies.pkl", "wb") as f:
+            pickle.dump(self.term_frequencies, f)
     
     def load(self):
         cache_dir = Path("cache")
@@ -44,6 +55,9 @@ class InvertedIndex:
 
         with open(cache_dir / "docmap.pkl", "rb") as f:        
             self.docmap = pickle.load(f)
+
+        with open(cache_dir / "term_frequencies.pkl", "rb") as f:
+            self.term_frequencies = pickle.load(f)
 
 stemmer = PorterStemmer()
 
@@ -82,12 +96,30 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
 
     return results
 
+def tf_command(doc_id: int, term: str) -> int:
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+
+    token = tokenize_term(term)
+    return inverted_index.get_tf(doc_id, token)
+
 def tokenize_text(text: str) -> list[str]:
     text = text.lower()
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = text.strip()
     text_tokens = text.split()
     return [token for token in text_tokens if token]
+
+def tokenize_term(term: str) -> str:
+    tokens = preprocess_text(term)
+    if len(tokens) != 1:
+        raise ValueError("Term must tokenize to exactly one token")
+    return tokens[0]
 
 def preprocess_text(text: str) -> list[str]:
     return [stemmer.stem(token) for token in tokenize_text(text)]
