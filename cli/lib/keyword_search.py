@@ -1,4 +1,5 @@
 from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS
+import math
 import string
 from nltk.stem import PorterStemmer
 from pathlib import Path
@@ -106,6 +107,20 @@ def tf_command(doc_id: int, term: str) -> int:
 
     token = tokenize_term(term)
     return inverted_index.get_tf(doc_id, token)
+
+def idf_command(term: str) -> float:
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+
+    token = tokenize_term(term)
+    total_doc_count = len(inverted_index.docmap)
+    term_match_doc_count = len(inverted_index.get_documents(token))
+    return math.log((total_doc_count + 1) / (term_match_doc_count + 1))
 
 def tokenize_text(text: str) -> list[str]:
     text = text.lower()
