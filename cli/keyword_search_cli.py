@@ -20,11 +20,10 @@ def main() -> None:
             print("Searching for:", args.query)
             results = search_command(args.query)
             for i, res in enumerate(results, 1):
-                print(f"{i}. {res['title']}")
+                print(f"{i}. {res['title']} ({res['id']})")
 
         case "build":
-            first_doc_id = build_command()
-            print(f"First document ID for 'merida': {first_doc_id}")
+            build_command()
             
         case _:
             parser.print_help()

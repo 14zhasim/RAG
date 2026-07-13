@@ -17,10 +17,7 @@ class InvertedIndex:
             self.index[token].add(doc_id)
     
     def get_documents(self, term):
-        if term in self.index:
-            doc_id_list = list(self.index.get(term, set()))
-            doc_id_list.sort()
-            return doc_id_list
+        return sorted(self.index.get(term, set()))
 
     def build(self):
         movies = load_movies()
@@ -38,27 +35,51 @@ class InvertedIndex:
 
         with open(cache_dir / "docmap.pkl", "wb") as f:
             pickle.dump(self.docmap, f)
+    
+    def load(self):
+        cache_dir = Path("cache")
+
+        with open(cache_dir / "index.pkl", "rb") as f:        
+            self.index = pickle.load(f)
+
+        with open(cache_dir / "docmap.pkl", "rb") as f:        
+            self.docmap = pickle.load(f)
 
 stemmer = PorterStemmer()
 
-def build_command() -> int:
+def build_command() -> None:
     inverted_index = InvertedIndex()
     inverted_index.build()
     inverted_index.save()
-    return inverted_index.get_documents("merida")[0]
 
 def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
-    movies = load_movies()
-    stop_words = STOPWORDS
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+
     results = []
-    preprocessed_stop_words = preprocess_list(stop_words)
-    preprocessed_query = preprocess_text(query)
-    for movie in movies:
-        preprocessed_title = preprocess_text(movie["title"])
-        if has_matching_token(preprocessed_query, preprocessed_title, preprocessed_stop_words):
-            results.append(movie)
+    seen_doc_ids = set()
+    processed_stop_words = preprocess_list(STOPWORDS)
+    processed_query = preprocess_text(query)
+    
+    for q in processed_query:
+        if q in processed_stop_words:
+            continue
+
+        for doc_id in inverted_index.get_documents(q):
+            if doc_id in seen_doc_ids:
+                continue
+
+            results.append(inverted_index.docmap[doc_id])
+            seen_doc_ids.add(doc_id)
+
             if len(results) >= limit:
-                break
+                return results
+
     return results
 
 def tokenize_text(text: str) -> list[str]:
