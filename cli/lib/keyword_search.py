@@ -118,9 +118,30 @@ def idf_command(term: str) -> float:
         raise SystemExit(1)
 
     token = tokenize_term(term)
+    return calculate_idf(inverted_index, token)
+
+def calculate_idf(inverted_index: InvertedIndex, token: str) -> float:
     total_doc_count = len(inverted_index.docmap)
     term_match_doc_count = len(inverted_index.get_documents(token))
     return math.log((total_doc_count + 1) / (term_match_doc_count + 1))
+
+def calculate_tfidf(inverted_index: InvertedIndex, doc_id: int, token: str) -> float:
+    tf = inverted_index.get_tf(doc_id, token)
+    idf = calculate_idf(inverted_index, token)
+    return tf * idf
+
+def tfidf_command(doc_id: int, term: str) -> float:
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+    
+    token = tokenize_term(term)
+    return calculate_tfidf(inverted_index, doc_id, token)
+
 
 def tokenize_text(text: str) -> list[str]:
     text = text.lower()
