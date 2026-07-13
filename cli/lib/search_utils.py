@@ -2,10 +2,16 @@ import json
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_PATH = PROJECT_ROOT/'data'/'movies.json'
+MOVIE_PATH = PROJECT_ROOT/'data'/'movies.json'
+STOP_WORD_PATH = PROJECT_ROOT/'data'/'stopwords.txt'
 DEFAULT_SEARCH_LIMIT = 5
 
 def load_movies():
-    with open(DATA_PATH, "r") as f:
+    with open(MOVIE_PATH, "r") as f:
         data = json.load(f)
         return data["movies"]
+
+def load_stop_words() -> list[str]:
+    with open(STOP_WORD_PATH, "r") as f:
+        data = f.read().splitlines()
+        return data
