@@ -1,10 +1,12 @@
-from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, load_stop_words
+from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS
 import string
+from nltk.stem import PorterStemmer
 
+stemmer = PorterStemmer()
 
 def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
     movies = load_movies()
-    stop_words = load_stop_words()
+    stop_words = STOPWORDS
     results = []
     preprocessed_stop_words = preprocess_list(stop_words)
     preprocessed_query = preprocess_text(query)
@@ -16,17 +18,21 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
                 break
     return results
 
-def preprocess_text(text: str) -> list[str]:
+def tokenize_text(text: str) -> list[str]:
     text = text.lower()
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = text.strip()
     text_tokens = text.split()
     return [token for token in text_tokens if token]
 
+def preprocess_text(text: str) -> list[str]:
+    return [stemmer.stem(token) for token in tokenize_text(text)]
+
 def preprocess_list(texts: list[str]) -> list[str]:
+    tokens = []
     for text in texts:
-        preprocess_text(text)
-    return [text for text in texts if text]
+        tokens.extend(tokenize_text(text))
+    return tokens
 
 def has_matching_token(query_tokens: list[str], title_tokens: list[str], stop_word_token) -> bool:
     token_bool = any(

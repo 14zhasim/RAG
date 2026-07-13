@@ -15,3 +15,5 @@ def load_stop_words() -> list[str]:
     with open(STOP_WORD_PATH, "r") as f:
         data = f.read().splitlines()
         return data
+
+STOPWORDS = load_stop_words()
