@@ -1,4 +1,4 @@
-from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS
+from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS, BM25_K1
 import math
 import string
 from nltk.stem import PorterStemmer
@@ -63,6 +63,10 @@ class InvertedIndex:
         df = len(self.index[term])
         N = len(self.docmap)
         return math.log((N - df + 0.5) / (df + 0.5) + 1)
+    
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1):
+        tf = self.get_tf(doc_id, term)
+        return (tf * (k1 + 1)) / (tf + k1)
 
 stemmer = PorterStemmer()
 
@@ -158,6 +162,19 @@ def bm25_idf_command(term: str):
 
     token = tokenize_term(term)
     return inverted_index.get_bm25_idf(token)        
+
+def bm25_tf_command(doc_id, term: str, k1=BM25_K1):
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+    
+    token = tokenize_term(term)
+    return inverted_index.get_bm25_tf(doc_id, token, k1)
+
 
 ###
 
