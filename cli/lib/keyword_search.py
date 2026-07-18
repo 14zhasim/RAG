@@ -6,6 +6,7 @@ from nltk.stem import PorterStemmer
 from pathlib import Path
 import pickle
 from collections import Counter, defaultdict
+from itertools import islice
 
 CACHE_DIR = Path("cache")
 
@@ -30,7 +31,7 @@ class InvertedIndex:
             self.term_frequencies[doc_id][token] += 1
     
     def __get_avg_doc_length(self) -> float:
-        if not self.doc_lengths:
+        if not self.doc_lengths or len(self.doc_lengths) == 0:
             return 0.0
         return sum(self.doc_lengths.values())/len(self.doc_lengths)
     
@@ -81,9 +82,35 @@ class InvertedIndex:
         return math.log((N - df + 0.5) / (df + 0.5) + 1)
     
     def get_bm25_tf(self, doc_id, term, k1=BM25_K1, b=BM25_B):
-        length_norm = 1 - b + b * (self.doc_lengths[doc_id] / self.__get_avg_doc_length())
+        doc_length = self.doc_lengths.get(doc_id, 0)
+        avg_doc_length = self.__get_avg_doc_length()
+        if avg_doc_length > 0:
+            length_norm = 1 - b + b * (doc_length / avg_doc_length)
+        else:
+            length_norm = 1
         tf = self.get_tf(doc_id, term)
         return (tf * (k1 + 1)) / (tf + k1 * length_norm)
+
+    def bm25(self, doc_id: str, term: str):
+        bm_tf = self.get_bm25_tf(doc_id, term)
+        bm_idf = self.get_bm25_idf(term)
+        return bm_tf * bm_idf
+    
+    def bm25_search(self, query: str, limit: int):
+        query_tokens = preprocess_text(query)
+        query_scores = {}
+
+        for doc_id in self.docmap:
+            bm25_score = 0
+            for token in query_tokens:
+                bm25_score += self.bm25(doc_id, token)
+            query_scores[doc_id] = bm25_score
+        
+        sorted_query_scores = dict(sorted(query_scores.items(), key = lambda item: item[1], reverse=True))
+
+        result = dict(islice(sorted_query_scores.items(), limit))
+
+        return result
 
 stemmer = PorterStemmer()
 
@@ -192,6 +219,27 @@ def bm25_tf_command(doc_id, term: str, k1=BM25_K1, b=BM25_B):
     token = tokenize_term(term)
     return inverted_index.get_bm25_tf(doc_id, token, k1, b)
 
+def bm25_command(query: str, limit: int):
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+    
+    return inverted_index.bm25_search(query, limit)
+
+def get_movie_name_command(doc_id):
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+    
+    return inverted_index.docmap[doc_id]['title']
 
 ###
 
@@ -209,7 +257,12 @@ def tokenize_term(term: str) -> str:
     return tokens[0]
 
 def preprocess_text(text: str) -> list[str]:
-    return [stemmer.stem(token) for token in tokenize_text(text)]
+    stop_words = set(preprocess_list(STOPWORDS))
+    return [
+        stemmer.stem(token)
+        for token in tokenize_text(text)
+        if token not in stop_words
+    ]
 
 def preprocess_list(texts: list[str]) -> list[str]:
     tokens = []
