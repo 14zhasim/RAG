@@ -1,4 +1,5 @@
-from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS, BM25_K1
+import os
+from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS, BM25_K1, BM25_B
 import math
 import string
 from nltk.stem import PorterStemmer
@@ -13,16 +14,25 @@ class InvertedIndex:
         self.index = defaultdict(set) # map tokens to sets of document IDs
         self.docmap = {} # map document ID to full document object
         self.term_frequencies = defaultdict(Counter) #map doc ID to a map of words and each of their counts
+        self.doc_lengths = {} #map each document to its document length (in terms of number of words)
         self.index_path = CACHE_DIR / "index.pkl"
         self.docmap_path = CACHE_DIR / "docmap.pkl"
         self.tf_path = CACHE_DIR / "term_frequencies.pkl"
+        self.doc_lengths_path = os.path.join(CACHE_DIR, "doc_lengths.pkl")
     
     def __add_document(self, doc_id, text):
         tokens = preprocess_text(text)
         
+        self.doc_lengths[doc_id] = len(tokens)
+
         for token in tokens:
             self.index[token].add(doc_id)
             self.term_frequencies[doc_id][token] += 1
+    
+    def __get_avg_doc_length(self) -> float:
+        if not self.doc_lengths:
+            return 0.0
+        return sum(self.doc_lengths.values())/len(self.doc_lengths)
     
     def get_documents(self, term):
         return sorted(self.index.get(term, set()))
@@ -45,6 +55,9 @@ class InvertedIndex:
         
         with open(self.tf_path, "wb") as f:
             pickle.dump(self.term_frequencies, f)
+
+        with open(self.doc_lengths_path, "wb") as f:
+            pickle.dump(self.doc_lengths, f)    
     
     def load(self):
         with open(self.index_path, "rb") as f:        
@@ -55,6 +68,9 @@ class InvertedIndex:
 
         with open(self.tf_path, "rb") as f:
             self.term_frequencies = pickle.load(f)
+        
+        with open(self.doc_lengths_path, "rb") as f:
+            self.doc_lengths = pickle.load(f)
 
     def get_tf(self, doc_id, term):
         return self.term_frequencies.get(doc_id, Counter()).get(term, 0)
@@ -64,9 +80,10 @@ class InvertedIndex:
         N = len(self.docmap)
         return math.log((N - df + 0.5) / (df + 0.5) + 1)
     
-    def get_bm25_tf(self, doc_id, term, k1=BM25_K1):
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1, b=BM25_B):
+        length_norm = 1 - b + b * (self.doc_lengths[doc_id] / self.__get_avg_doc_length())
         tf = self.get_tf(doc_id, term)
-        return (tf * (k1 + 1)) / (tf + k1)
+        return (tf * (k1 + 1)) / (tf + k1 * length_norm)
 
 stemmer = PorterStemmer()
 
@@ -163,7 +180,7 @@ def bm25_idf_command(term: str):
     token = tokenize_term(term)
     return inverted_index.get_bm25_idf(token)        
 
-def bm25_tf_command(doc_id, term: str, k1=BM25_K1):
+def bm25_tf_command(doc_id, term: str, k1=BM25_K1, b=BM25_B):
     inverted_index = InvertedIndex()
 
     try:
@@ -173,7 +190,7 @@ def bm25_tf_command(doc_id, term: str, k1=BM25_K1):
         raise SystemExit(1)
     
     token = tokenize_term(term)
-    return inverted_index.get_bm25_tf(doc_id, token, k1)
+    return inverted_index.get_bm25_tf(doc_id, token, k1, b)
 
 
 ###
