@@ -12,7 +12,7 @@ class InvertedIndex:
     def __init__(self):
         self.index = defaultdict(set) # map tokens to sets of document IDs
         self.docmap = {} # map document ID to full document object
-        self.term_frequencies = defaultdict(Counter)
+        self.term_frequencies = defaultdict(Counter) #map doc ID to a map of words and each of their counts
         self.index_path = CACHE_DIR / "index.pkl"
         self.docmap_path = CACHE_DIR / "docmap.pkl"
         self.tf_path = CACHE_DIR / "term_frequencies.pkl"
@@ -26,9 +26,6 @@ class InvertedIndex:
     
     def get_documents(self, term):
         return sorted(self.index.get(term, set()))
-
-    def get_tf(self, doc_id, term):
-        return self.term_frequencies.get(doc_id, Counter()).get(term, 0)
 
     def build(self):
         movies = load_movies()
@@ -58,6 +55,14 @@ class InvertedIndex:
 
         with open(self.tf_path, "rb") as f:
             self.term_frequencies = pickle.load(f)
+
+    def get_tf(self, doc_id, term):
+        return self.term_frequencies.get(doc_id, Counter()).get(term, 0)
+    
+    def get_bm25_idf(self, term: str) -> float:
+        df = len(self.index[term])
+        N = len(self.docmap)
+        return math.log((N - df + 0.5) / (df + 0.5) + 1)
 
 stemmer = PorterStemmer()
 
@@ -125,11 +130,6 @@ def calculate_idf(inverted_index: InvertedIndex, token: str) -> float:
     term_match_doc_count = len(inverted_index.get_documents(token))
     return math.log((total_doc_count + 1) / (term_match_doc_count + 1))
 
-def calculate_tfidf(inverted_index: InvertedIndex, doc_id: int, token: str) -> float:
-    tf = inverted_index.get_tf(doc_id, token)
-    idf = calculate_idf(inverted_index, token)
-    return tf * idf
-
 def tfidf_command(doc_id: int, term: str) -> float:
     inverted_index = InvertedIndex()
 
@@ -142,6 +142,24 @@ def tfidf_command(doc_id: int, term: str) -> float:
     token = tokenize_term(term)
     return calculate_tfidf(inverted_index, doc_id, token)
 
+def calculate_tfidf(inverted_index: InvertedIndex, doc_id: int, token: str) -> float:
+    tf = inverted_index.get_tf(doc_id, token)
+    idf = calculate_idf(inverted_index, token)
+    return tf * idf
+
+def bm25_idf_command(term: str):
+    inverted_index = InvertedIndex()
+
+    try:
+        inverted_index.load()
+    except FileNotFoundError:
+        print("Search index not found. Run the build command first.")
+        raise SystemExit(1)
+
+    token = tokenize_term(term)
+    return inverted_index.get_bm25_idf(token)        
+
+###
 
 def tokenize_text(text: str) -> list[str]:
     text = text.lower()
