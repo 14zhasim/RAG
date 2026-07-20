@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import string
 from lib.keyword_search import build_command, idf_command, search_command, tf_command, tfidf_command, bm25_idf_command, bm25_tf_command, bm25_command, get_movie_name_command
-from lib.search_utils import BM25_K1, BM25_B
+from lib.search_utils import BM25_K1, BM25_B, DEFAULT_SEARCH_LIMIT
     
 
 def main() -> None:
@@ -30,7 +30,7 @@ def main() -> None:
     bm25_tf_parser.add_argument("b", type=float, nargs='?', default=BM25_B, help="Tunable BM25 B parameter")
     bm25search_parser = subparsers.add_parser("bm25search", help="Search movies using full BM25 scoring")
     bm25search_parser.add_argument("query", type=str, help="Search query")
-    bm25search_parser.add_argument("limit", type=int, nargs='?', default=5, help="Search query result limit")
+    bm25search_parser.add_argument("limit", type=DEFAULT_SEARCH_LIMIT, nargs='?', default=5, help="Search query result limit")
 
 
     args = parser.parse_args()
