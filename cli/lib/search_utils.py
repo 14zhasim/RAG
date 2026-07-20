@@ -7,6 +7,7 @@ STOP_WORD_PATH = PROJECT_ROOT/'data'/'stopwords.txt'
 DEFAULT_SEARCH_LIMIT = 5
 BM25_K1 = 1.5
 BM25_B = 0.75
+CACHE_DIR = Path("cache")
 
 def load_movies():
     with open(MOVIE_PATH, "r") as f:

@@ -1,5 +1,5 @@
 import os
-from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS, BM25_K1, BM25_B
+from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, STOPWORDS, BM25_K1, BM25_B, CACHE_DIR
 import math
 import string
 from nltk.stem import PorterStemmer
@@ -8,14 +8,13 @@ import pickle
 from collections import Counter, defaultdict
 from itertools import islice
 
-CACHE_DIR = Path("cache")
 
 class InvertedIndex:
     def __init__(self):
         self.index = defaultdict(set) # map tokens to sets of document IDs
         self.docmap = {} # map document ID to full document object
-        self.term_frequencies = defaultdict(Counter) #map doc ID to a map of words and each of their counts
-        self.doc_lengths = {} #map each document to its document length (in terms of number of words)
+        self.term_frequencies = defaultdict(Counter) # map doc ID to a map of words and each of their counts
+        self.doc_lengths = {} # map each document to its document length (in terms of number of words)
         self.index_path = CACHE_DIR / "index.pkl"
         self.docmap_path = CACHE_DIR / "docmap.pkl"
         self.tf_path = CACHE_DIR / "term_frequencies.pkl"
@@ -130,13 +129,9 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
 
     results = []
     seen_doc_ids = set()
-    processed_stop_words = preprocess_list(STOPWORDS)
     processed_query = preprocess_text(query)
     
     for q in processed_query:
-        if q in processed_stop_words:
-            continue
-
         for doc_id in inverted_index.get_documents(q):
             if doc_id in seen_doc_ids:
                 continue
