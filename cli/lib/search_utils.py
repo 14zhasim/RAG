@@ -9,6 +9,8 @@ BM25_K1 = 1.5
 BM25_B = 0.75
 CACHE_DIR = Path("cache")
 DEFAULT_CHUNK_SIZE = 200
+DEFAULT_OVERLAP_SIZE = 0
+DEFAULT_SEMANTIC_CHUNK_SIZE = 4
 
 def load_movies():
     with open(MOVIE_PATH, "r") as f:

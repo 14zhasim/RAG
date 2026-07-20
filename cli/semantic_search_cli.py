@@ -1,6 +1,6 @@
 import argparse
-from lib.semantic_search import SemanticSearch, verify_model, embed_text, verify_embeddings, embed_query_text, search, chunk_text
-from lib.search_utils import DEFAULT_SEARCH_LIMIT, DEFAULT_CHUNK_SIZE
+from lib.semantic_search import SemanticSearch, verify_model, embed_text, verify_embeddings, embed_query_text, search, chunk_text, semantic_chunk_text
+from lib.search_utils import DEFAULT_SEARCH_LIMIT, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -18,7 +18,11 @@ def main() -> None:
     chunk_parser = subparsers.add_parser("chunk", help="Provide desired chunk size")
     chunk_parser.add_argument("text", type=str, help="text to chunk")
     chunk_parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE, help="chunk size")
-    chunk_parser.add_argument("--overlap", type=int, default=DEFAULT_CHUNK_SIZE, help="chunk size")
+    chunk_parser.add_argument("--overlap", type=int, default=DEFAULT_OVERLAP_SIZE, help="size of overlap with previous chunk")
+    semantic_chunk_parser = subparsers.add_parser("semantic_chunk", help="Chunk text according to their semantic meanings")
+    semantic_chunk_parser.add_argument("text", type=str, help="Text to chunk semantically")
+    semantic_chunk_parser.add_argument("--max-chunk-size", type=int, default=DEFAULT_SEMANTIC_CHUNK_SIZE, help="max size of a semantic chunk")
+    semantic_chunk_parser.add_argument("--overlap", type=int, default=DEFAULT_OVERLAP_SIZE, help="size of overlap with previous semantic chunk")
 
 
     args = parser.parse_args()
@@ -35,7 +39,9 @@ def main() -> None:
         case "search":
             search(args.query, args.limit)
         case "chunk":
-            chunk_text(args.text, args.chunk_size)
+            chunk_text(args.text, args.chunk_size, args.overlap)
+        case "semantic_chunk":
+            semantic_chunk_text(args.text, args.max_chunk_size, args.overlap)
         case _:
             parser.print_help()
 
