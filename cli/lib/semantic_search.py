@@ -110,3 +110,21 @@ def search(query, limit=5):
     for i in range(len(result)):
         print(f"{i+1}. {result[i]["title"]} (score: {result[i]["score"]}) \n" +
              f"\t{result[i]["description"]}")
+        
+def chunking(text, n):
+    start, end = 0, n
+    text_list = text.split(' ')
+    chunks = []
+
+    while start < len(text_list):
+        chunk_words = text_list[start: start + n]
+        chunks.append(' '.join(chunk_words))
+        start += n
+
+    return chunks
+
+def chunk_text(text, n):
+    chunks = chunking(text, n)
+    print(f"Chunking {len(text)} characters")
+    for i, chunk in enumerate(chunks):
+        print(f"{i+1}. {chunk}")
