@@ -30,7 +30,7 @@ def main() -> None:
     bm25_tf_parser.add_argument("b", type=float, nargs='?', default=BM25_B, help="Tunable BM25 B parameter")
     bm25search_parser = subparsers.add_parser("bm25search", help="Search movies using full BM25 scoring")
     bm25search_parser.add_argument("query", type=str, help="Search query")
-    bm25search_parser.add_argument("limit", type=DEFAULT_SEARCH_LIMIT, nargs='?', default=5, help="Search query result limit")
+    bm25search_parser.add_argument("limit", type=int, nargs='?', default=DEFAULT_SEARCH_LIMIT, help="Search query result limit")
 
 
     args = parser.parse_args()
