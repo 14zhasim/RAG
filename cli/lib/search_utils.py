@@ -11,6 +11,8 @@ CACHE_DIR = Path("cache")
 DEFAULT_CHUNK_SIZE = 200
 DEFAULT_OVERLAP_SIZE = 0
 DEFAULT_SEMANTIC_CHUNK_SIZE = 4
+SCORE_PRECISION = 2
+
 
 def load_movies():
     with open(MOVIE_PATH, "r") as f:
@@ -21,5 +23,14 @@ def load_stop_words() -> list[str]:
     with open(STOP_WORD_PATH, "r") as f:
         data = f.read().splitlines()
         return data
+
+def format_search_result(doc_id, title, document, score, metadata=None):
+    return {
+        "id": doc_id,
+        "title": title,
+        "document": document[:100],
+        "score": round(score, SCORE_PRECISION),
+        "metadata": metadata or {},
+    }
 
 STOPWORDS = load_stop_words()
