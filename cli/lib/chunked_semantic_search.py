@@ -118,9 +118,11 @@ def chunking(text_list, chunk_size, overlap):
     while start < len(text_list):
         chunk_words = text_list[start: start + chunk_size]
 
-        if chunks and len(chunk_words) <= overlap:
+        if (not chunk_words) or (chunks and len(chunk_words) <= overlap):
             break
 
+        chunk_words = [chunk.strip() for chunk in chunk_words if chunk.strip()]
+        
         chunks.append(' '.join(chunk_words))
         start = start - overlap + chunk_size
 
@@ -136,7 +138,15 @@ def chunk_text(text, chunk_size, overlap):
 
 def semantic_chunk_text(text, chunk_size, overlap):
     #split input text into individual *sentences* using RegEx
-    sentences = re.split(r"(?<=[.!?])\s+", text)
+    sentences = text.strip()
+
+    if not sentences: return []
+
+    sentences = re.split(r"(?<=[.!?])\s+", sentences)
+
+    if len(sentences) == 1 and not text.endswith((".", "!", "?")):
+        sentences = [text]    
+
     chunks = chunking(sentences, chunk_size, overlap)
     print(f"Semantically chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
