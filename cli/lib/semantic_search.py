@@ -5,11 +5,11 @@ import os
 import re
 
 class SemanticSearch:
-    def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.embeddings = None
-        self.documents = None
-        self.document_map = {}
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(model_name)
+        self.embeddings = None #for each movie, a list of embeddings of movie title and description
+        self.documents = None #list of document objects
+        self.document_map = {} #map doc id to their object
 
     def generate_embedding(self, text):
         if not text.strip():
@@ -27,6 +27,7 @@ class SemanticSearch:
             self.document_map[doc['id']] = doc            
             movie_strings.append(f"{doc['title']}: {doc['description']}")
         self.embeddings = self.model.encode(movie_strings, show_progress_bar=True)
+        CACHE_DIR.mkdir(exist_ok=True)
         np.save(CACHE_DIR / 'movie_embeddings.npy', self.embeddings)
         return self.embeddings
 
@@ -112,61 +113,3 @@ def search(query, limit=5):
         print(f"{i+1}. {result[i]["title"]} (score: {result[i]["score"]}) \n" +
              f"\t{result[i]["description"]}")
         
-def chunking(text_list, chunk_size, overlap):
-    start = 0
-    chunks = []
-
-    while start < len(text_list):
-        chunk_words = text_list[max(0, start - overlap): start + chunk_size]
-        chunks.append(' '.join(chunk_words))
-        start += chunk_size
-
-    return chunks
-
-def chunk_text(text, chunk_size, overlap):
-    text_list = text.split(' ')
-    chunks = chunking(text_list, chunk_size, overlap)
-    print(f"Chunking {len(text)} characters")
-    for i, chunk in enumerate(chunks):
-        print(f"{i+1}. {chunk}")
-
-def semantic_chunk_text(text, chunk_size, overlap):
-    #split input text into individual *sentences* using RegEx
-    sentences = re.split(r"(?<=[.!?])\s+", text)
-    chunks = chunking(sentences, chunk_size, overlap)
-    print(f"Semantically chunking {len(text)} characters")
-    for i, chunk in enumerate(chunks):
-        print(f"{i+1}. {chunk}") 
-
-#embedding-driven boundary detection 
-#create embedding for each sentence in document
-#(i.e., using cosine similarity between sentences to decide where to split) - if similarity between two sentences falls below certain threshold, chunk it
-#example is LlamaIndex's SemanticSplitterNodeParser)
-#Useful when:
-###text is 'unstructured wall-of-text' with high variable topic density
-###have compute/latency budget to spare, given it requires embedding each sentence BEFORE chunking
-###retrieval quality critical enough to justify extra complexity
-
-#production RAG systems use simple strategies: EXPLOIT ANY STRUCTURE IN YOUR DOCUMENT BEFORE USING EXPENSIVE, GENERAL-PURPOSE TECHNIQUES
-#Fixed-size token/word chunking with overlap (what we did first, built above)
-#Sentence or paragraph-based chunking (what we just built above)
-#Structure-aware chunking (splitting on markdown headers, HTML tags, metadata (titles, section headers) etc.)
-
-#normal RAG production strategy:
-#chunk by document structure (headers/paragraphs)
-#tune chunks size and overlap to sue case
-#use good reranker downstream to fix mediocre retrieval
-
-#LLM-based chunking (llm decides chunk sizes). it is worth it when:
-#Tables and financial statements need to stay intact. A naive sentence or token splitter will happily slice a balance sheet in half. 
-###An LLM (or a rules engine) can recognize "this is a table, keep it as one unit" or "this is Item 7A (market risk disclosures), keep the whole item together."
-#Sections carry semantic weight that maps to real query patterns. Analysts often ask things like "what are the risk factors" or "what's the liquidity discussion" — mapping directly to Item 1A, Item 7, etc. 
-###An LLM (or even simpler regex/structure parsing) that chunks along these known section boundaries will outperform arbitrary splits.
-#summarization-aware chunking
-###You need summarization-aware chunking, e.g., an LLM chunker that also tags each chunk with metadata (fiscal year, section, subsidiary mentioned) 
-###for later filtering.
-
-#However, LLM based chunking is costly. Can get value from doing structure-aware parsing first (from the actual HTML/XBRL tags SEC filings ship with), 
-#table-aware extraction, where tables are treated as atomic units
-#Then, as a fallback, use LLM-based or even embedding-driven chunking as a fallback/refinement: reserved for unstructured narrative sections (e.g. MD&A) where 
-#paragraph boundaries are not enough

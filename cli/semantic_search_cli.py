@@ -1,5 +1,6 @@
 import argparse
-from lib.semantic_search import SemanticSearch, verify_model, embed_text, verify_embeddings, embed_query_text, search, chunk_text, semantic_chunk_text
+from lib.semantic_search import SemanticSearch, verify_model, embed_text, verify_embeddings, embed_query_text, search
+from lib.chunked_semantic_search import chunk_text, semantic_chunk_text, embed_chunks
 from lib.search_utils import DEFAULT_SEARCH_LIMIT, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE
 
 def main() -> None:
@@ -23,7 +24,7 @@ def main() -> None:
     semantic_chunk_parser.add_argument("text", type=str, help="Text to chunk semantically")
     semantic_chunk_parser.add_argument("--max-chunk-size", type=int, default=DEFAULT_SEMANTIC_CHUNK_SIZE, help="max size of a semantic chunk")
     semantic_chunk_parser.add_argument("--overlap", type=int, default=DEFAULT_OVERLAP_SIZE, help="size of overlap with previous semantic chunk")
-
+    embed_chunk_parser = subparsers.add_parser("embed_chunks", help="Chunk text according to their semantic meanings")
 
     args = parser.parse_args()
     
@@ -42,6 +43,9 @@ def main() -> None:
             chunk_text(args.text, args.chunk_size, args.overlap)
         case "semantic_chunk":
             semantic_chunk_text(args.text, args.max_chunk_size, args.overlap)
+        case "embed_chunks":
+            embeddings = embed_chunks()
+            print(f"Generated {len(embeddings)} chunked embeddings")
         case _:
             parser.print_help()
 
