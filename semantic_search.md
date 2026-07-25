@@ -1,3 +1,19 @@
+## Overview
+When start new project, make sure uv install packages like openAI, numpy, nltk, python-dotenv, sentence-transformers
+
+It is worth going through the course to understand main engineering decisions/tradeoffs you have to make
+Current understanding
+- what stop works you use for keyword search - measures you take to clean up query (strip, filter punctuation with regex, stemming etc.)
+- keyword search: k1 (how much increasing repetition of word in search result adds to its score), b (how much document's length vs average document length affects its score for a given word search)
+- embedding model used in semnatic search
+- semantic search: chunk and overlap size, how to chunk different docs/file types
+- alpha paramaeter - weighting on semantics vs keyword score for hybrid search
+- how you normalise score - min/max of absolute scores, using ranking to calculate rrf (where decide k parameter)
+- search result limit
+
+To prompt LLMs in the best way, use: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview
+- use LLMs to clean search queries before performing them
+
 ## embedding-driven boundary detection 
 
 - create embedding for each sentence in document
