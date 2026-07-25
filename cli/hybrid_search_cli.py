@@ -1,7 +1,8 @@
 import argparse
 from lib.hybrid_search import normalize_score, HybridSearch
-from lib.search_utils import DEFAULT_ALPHA, HYBRID_SEARCH_LIMIT, load_movies, RRF_SEARCH_LIMIT, RRF_SEARCH_PARAMETER, SEARCH_ENHANCEMENT_METHODS
+from lib.search_utils import DEFAULT_ALPHA, HYBRID_SEARCH_LIMIT, load_movies, RRF_SEARCH_LIMIT, RRF_SEARCH_PARAMETER, SEARCH_ENHANCEMENT_METHODS, RERANK_ENHANCEMENT_METHODS
 from lib.enhance_query import enhance_query
+from lib.rerank_results import rerank_results
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
@@ -20,6 +21,7 @@ def main() -> None:
     rrf_search_parser.add_argument("-k", type=int, default=RRF_SEARCH_PARAMETER, help="adjust parameter for how much weight placed on top-ranking results")
     rrf_search_parser.add_argument("--limit", type=int, default=RRF_SEARCH_LIMIT, help="Hybrid search result limit")
     rrf_search_parser.add_argument("--enhance", type=str, choices=SEARCH_ENHANCEMENT_METHODS, help="Query enhancement method")
+    rrf_search_parser.add_argument("--rerank-method", type=str, choices=RERANK_ENHANCEMENT_METHODS, help="Query reranking enhancement method")
 
 
     args = parser.parse_args()
@@ -42,17 +44,27 @@ def main() -> None:
         case "rrf-search":
             movies = load_movies()
             hybrid_search = HybridSearch(movies)
+            limit = args.limit * (5 if args.rerank_method else 1)
             # argparse choices already validates the enhancement method, so any
             # provided value can be passed through to the enhancement helper.
             if args.enhance:
                 enhanced_query = enhance_query(args.query, args.enhance)
                 print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{enhanced_query}'\n")
-                results = hybrid_search.rrf_search(enhanced_query, args.k, args.limit)
+                results = hybrid_search.rrf_search(enhanced_query, args.k, limit)
             else:
-                results = hybrid_search.rrf_search(args.query, args.k, args.limit)
+                results = hybrid_search.rrf_search(args.query, args.k, limit)
+            
+            if args.rerank_method:
+                print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
+                unfilitered_results = rerank_results(args.rerank_method, args.query, results)
+                results = unfilitered_results[:args.limit]
+            print(f"Reciprocal Rank Fusion Results for '{args.query}' (k={args.k}):")
+
             for i, result in enumerate(results, start=1):
                 document = result["document"]
                 print(f"{i}. {document['title']}")
+                if "Re-rank Score" in result:
+                    print(f"   Re-rank Score: {result['Re-rank Score']:.3f}/10")    
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 print(f"   BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}")
                 print(f"   {document['description'][:100]}...")            

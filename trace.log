@@ -1,0 +1,37 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8121.16it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14327.37it/s]
+Re-ranking top 3 results using individual method...
+Traceback (most recent call last):
+  File "/Users/zubairasim/rag-search-engine/cli/hybrid_search_cli.py", line 75, in <module>
+    main()
+    ~~~~^^
+  File "/Users/zubairasim/rag-search-engine/cli/hybrid_search_cli.py", line 58, in main
+    unfilitered_results = rerank_results(args.rerank_method, args.query, results)
+  File "/Users/zubairasim/rag-search-engine/cli/lib/rerank_results.py", line 82, in rerank_results
+    return individual_rerank(query, results)
+  File "/Users/zubairasim/rag-search-engine/cli/lib/rerank_results.py", line 71, in individual_rerank
+    llm_rank = get_rerank_score(prompt)
+  File "/Users/zubairasim/rag-search-engine/cli/lib/rerank_results.py", line 33, in get_rerank_score
+    response = client.chat.completions.create(
+        model=model,
+        messages=message,
+    )
+  File "/Users/zubairasim/rag-search-engine/.venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/zubairasim/rag-search-engine/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1251, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<52 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/zubairasim/rag-search-engine/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zubairasim/rag-search-engine/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day', 'code': 429, 'metadata': {'headers': {'X-RateLimit-Limit': '50', 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1785024000000'}, 'provider_name': None, 'previous_errors': [{'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}, {'code': 429, 'message': 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day'}]}}, 'user_id': 'user_3G82h9hoyXlf54lmCG74irBpvB4'}
