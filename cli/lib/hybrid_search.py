@@ -24,7 +24,7 @@ class HybridSearch:
 
         bm25_results = self._bm25_search(query, result_pool_size)
         semantic_results = self.semantic_search.search_chunks(query, result_pool_size)
-        combined_results = combine_search_results(
+        ranked_results = combine_search_results(
             bm25_results,
             semantic_results,
             self.inverted_index.docmap,
@@ -32,15 +32,22 @@ class HybridSearch:
             alpha,
         )
 
-        sorted_results = sorted(
-            combined_results,
-            key=lambda result: result["hybrid_score"],
-            reverse=True,
-        )
-        return sorted_results[:limit]
+        return ranked_results[:limit]
 
     def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
-        raise NotImplementedError("RRF hybrid search is not implemented yet.")
+        result_pool_size = 500 * limit
+        bm25_results = self._bm25_search(query, result_pool_size)
+        semantic_results = self.semantic_search.search_chunks(query, result_pool_size)
+        combined_rrf_results = combine_rrf_results(
+            bm25_results,
+            semantic_results,
+            self.inverted_index.docmap,
+            self.semantic_search.document_map,
+            k
+        )
+
+        return combined_rrf_results[:limit]
+
 
 def normalize_score(*scores):
     score_list = list(scores)
@@ -77,17 +84,14 @@ def combine_search_results(
 
     for (doc_id, _score), normalized_score in normalize_bm25_results(bm25_results):
         combined_results[doc_id]["document"] = bm25_docmap[doc_id]
-        combined_results[doc_id]["bm25_score"] = max(
-            combined_results[doc_id].get("bm25_score", 0.0),
-            normalized_score,
-        )
+        combined_results[doc_id]["bm25_score"] = normalized_score
 
     for result, normalized_score in normalize_semantic_results(semantic_results):
         doc_id = result["id"]
         combined_results[doc_id]["document"] = semantic_docmap[doc_id]
         combined_results[doc_id]["semantic_score"] = max(
             combined_results[doc_id].get("semantic_score", 0.0),
-            normalized_score,
+            normalized_score, #If this document appears more than once in semantic results, keep the highest normalized semantic score.
         )
 
     hybrid_results = []
@@ -101,4 +105,46 @@ def combine_search_results(
         )
         hybrid_results.append(result)
 
-    return hybrid_results
+    sorted_results = sorted(
+            hybrid_results,
+            key=lambda result: result["hybrid_score"],
+            reverse=True,
+        )
+    
+    return sorted_results
+
+def calculate_rrf(rank: int, k: int) -> float:
+    return 1 / (k + rank)
+
+def combine_rrf_results(
+    bm25_results,
+    semantic_results,
+    bm25_docmap,
+    semantic_docmap,
+    k
+):
+    combined_results = defaultdict(dict)
+
+    for idx, doc_id in enumerate(bm25_results, start=1):
+        combined_results[doc_id]["document"] = bm25_docmap[doc_id]
+        combined_results[doc_id]["bm25_rank"] = idx
+        rrf_score = calculate_rrf(idx, k)
+        combined_results[doc_id]["rrf_score"] = combined_results[doc_id].get("rrf_score", 0) + rrf_score
+    
+    for idx, result in enumerate(semantic_results, start=1):
+        doc_id = result["id"]
+        combined_results[doc_id]["document"] = semantic_docmap[doc_id]
+        combined_results[doc_id]["semantic_rank"] = idx
+
+        rrf_score = calculate_rrf(idx, k)
+        combined_results[doc_id]["rrf_score"] = combined_results[doc_id].get("rrf_score", 0) + rrf_score
+    
+    for result in combined_results.values():
+        result["bm25_rank"] = result.get("bm25_rank", "n/a")
+        result["semantic_rank"] = result.get("semantic_rank", "n/a")
+    
+    return sorted(
+        combined_results.values(),
+        key=lambda result: result["rrf_score"],
+        reverse=True,
+    )
