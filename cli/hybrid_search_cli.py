@@ -65,6 +65,8 @@ def main() -> None:
                 print(f"{i}. {document['title']}")
                 if "Re-rank Score" in result:
                     print(f"   Re-rank Score: {result['Re-rank Score']:.3f}/10")    
+                if "Re-rank Rank" in result:
+                    print(f"   Re-rank Rank: {result['Re-rank Rank']}")  
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 print(f"   BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}")
                 print(f"   {document['description'][:100]}...")            

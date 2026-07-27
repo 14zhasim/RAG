@@ -1,8 +1,11 @@
 ## Overview
-When start new project, make sure uv install packages like openAI, numpy, nltk, python-dotenv, sentence-transformers
 
-It is worth going through the course to understand main engineering decisions/tradeoffs you have to make
+When start new project, make sure uv install packages like openAI, numpy, nltk, python-dotenv, sentence-transformers, and 'masters time spent' doc for initial setup stuff to check
+
+It is worth going through the course to understand main engineering decisions/tradeoffs you have to make.
+
 Current understanding
+
 - what stop works you use for keyword search - measures you take to clean up query (strip, filter punctuation with regex, stemming etc.)
 - keyword search: k1 (how much increasing repetition of word in search result adds to its score), b (how much document's length vs average document length affects its score for a given word search)
 - embedding model used in semnatic search
@@ -12,9 +15,10 @@ Current understanding
 - search result limit
 
 To prompt LLMs in the best way, use: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview
+
 - use LLMs to clean search queries before performing them
 
-## embedding-driven boundary detection 
+## embedding-driven boundary detection
 
 - create embedding for each sentence in document
 - (i.e., using cosine similarity between sentences to decide where to split) - if similarity between two sentences falls below certain threshold, chunk it
@@ -38,18 +42,18 @@ To prompt LLMs in the best way, use: https://platform.claude.com/docs/en/build-w
 
 **LLM-based chunking (llm decides chunk sizes). it is worth it when:**
 
-- Tables and financial statements need to stay intact. A naive sentence or token splitter will happily slice a balance sheet in half. 
+- Tables and financial statements need to stay intact. A naive sentence or token splitter will happily slice a balance sheet in half.
   - An LLM (or a rules engine) can recognize "this is a table, keep it as one unit" or "this is Item 7A (market risk disclosures), keep the whole item together."
-- Sections carry semantic weight that maps to real query patterns. Analysts often ask things like "what are the risk factors" or "what's the liquidity discussion" — mapping directly to Item 1A, Item 7, etc. 
+- Sections carry semantic weight that maps to real query patterns. Analysts often ask things like "what are the risk factors" or "what's the liquidity discussion" — mapping directly to Item 1A, Item 7, etc.
   - An LLM (or even simpler regex/structure parsing) that chunks along these known section boundaries will outperform arbitrary splits.
 - summarization-aware chunking
-  - You need summarization-aware chunking, e.g., an LLM chunker that also tags each chunk with metadata (fiscal year, section, subsidiary mentioned) 
+  - You need summarization-aware chunking, e.g., an LLM chunker that also tags each chunk with metadata (fiscal year, section, subsidiary mentioned)
     for later filtering.
 
 **However, LLM based chunking is costly. Can get value from doing structure-aware parsing first (from the actual HTML/XBRL tags SEC filings ship with),**
 
 - table-aware extraction, where tables are treated as atomic units
-- Then, as a fallback, use LLM-based or even embedding-driven chunking as a fallback/refinement: reserved for unstructured narrative sections (e.g. MD&A) where 
+- Then, as a fallback, use LLM-based or even embedding-driven chunking as a fallback/refinement: reserved for unstructured narrative sections (e.g. MD&A) where
   paragraph boundaries are not enough
 
 ---
@@ -92,7 +96,7 @@ can a lot of these issues by avoided using hybrid search, and combine with LLMs 
 
 This one's legitimate but heavier machinery. GraphRAG (building an explicit knowledge graph of entities/relationships, e.g., linking "Item 7A" mentions to their actual content, or connecting subsidiary names to parent companies across filings) does solve the cross-referencing problem well, and is used in some financial/legal RAG products for this reason. The caveat: building and maintaining a knowledge graph from filings is a significant engineering investment (extraction pipelines, entity resolution, graph storage/query layer). It's usually justified only when cross-reference resolution is a primary user need (e.g., "trace this obligation across all referenced sections") rather than applied by default.
 
-*Why it's hard — breaking down the actual work:*
+_Why it's hard — breaking down the actual work:_
 
 - Entity extraction. You need to reliably pull named entities (companies, people, dollar amounts, dates, financial metrics) out of unstructured text. This usually means running an LLM or NER model over every chunk, which is slow and imperfect — it will miss entities, misclassify them, or extract inconsistent forms (e.g., "Apple Inc." vs "Apple" vs "AAPL" as three different nodes when they should be one).
 
@@ -155,40 +159,40 @@ Using Microsoft's graphrag library instead of hand-building the pipeline makes t
 
 At retrieval time, ColBERT keeps **every token embedding**, contextualized by the chunk it was encoded in (the chunk is typically what's fed through the model at once).
 
-There is no final "squash into one chunk vector" step. The chunk's representation *is* its bag of token embeddings, stored as-is.
+There is no final "squash into one chunk vector" step. The chunk's representation _is_ its bag of token embeddings, stored as-is.
 
-At query time, you also embed the query into per-token vectors, then do a fine-grained matching (ColBERT uses something called "MaxSim": for each query token, find the *most similar* document token, then sum those max scores across all query tokens). This lets you compare token-to-token instead of chunk-to-chunk.
+At query time, you also embed the query into per-token vectors, then do a fine-grained matching (ColBERT uses something called "MaxSim": for each query token, find the _most similar_ document token, then sum those max scores across all query tokens). This lets you compare token-to-token instead of chunk-to-chunk.
 
 So yes: no single "chunk embedding" ever gets created in ColBERT's pipeline. The multiple token vectors are the retrieval unit.
 
 ### Late chunking
 
-You run the **entire document** (not just one chunk) through the model, so every token embedding is contextualized by the *whole document*, not just its local chunk.
+You run the **entire document** (not just one chunk) through the model, so every token embedding is contextualized by the _whole document_, not just its local chunk.
 
 After getting these full-document, context-rich token embeddings, you then decide chunk boundaries and **pool together** (e.g., average) the token embeddings that fall inside each chunk to produce **one embedding per chunk**.
 
-So the "lateness" refers to chunking happening *after* contextualization, rather than chunking the raw text first and then embedding each piece independently (which is regular/early chunking).
+So the "lateness" refers to chunking happening _after_ contextualization, rather than chunking the raw text first and then embedding each piece independently (which is regular/early chunking).
 
 The end result of late chunking is a single vector per chunk, just like regular chunking, but that vector is richer because it was computed with full-document context before being pooled.
 
 ### Summary of the key difference
 
-| Method | Context window used | Final representation |
-| --- | --- | --- |
-| ColBERT | chunk-level context | many vectors (one per token), no pooling |
+| Method        | Context window used    | Final representation                             |
+| ------------- | ---------------------- | ------------------------------------------------ |
+| ColBERT       | chunk-level context    | many vectors (one per token), no pooling         |
 | Late chunking | whole-document context | one vector per chunk (pooled from token vectors) |
 
 ### When to use these approaches
 
 **"Extremely precise search results" — what does this mean concretely?**
 
-Precision here means: when you search, the *specific* relevant passage ranks at the top, not just something topically related. Regular chunk-level embeddings average everything in a chunk into one vector, so subtle distinctions can get blurred out.
+Precision here means: when you search, the _specific_ relevant passage ranks at the top, not just something topically related. Regular chunk-level embeddings average everything in a chunk into one vector, so subtle distinctions can get blurred out.
 
 Example:
 
 > A chunk contains: "The patient reported no history of penicillin allergy but experienced a severe reaction to amoxicillin during treatment last year."
 
-If someone searches "penicillin allergy," a single chunk-level embedding might score this chunk as a decent match, because "penicillin" and "allergy" are both present, even though the actual meaning is the *opposite* (no allergy to penicillin, but a reaction to a related drug).
+If someone searches "penicillin allergy," a single chunk-level embedding might score this chunk as a decent match, because "penicillin" and "allergy" are both present, even though the actual meaning is the _opposite_ (no allergy to penicillin, but a reaction to a related drug).
 
 With ColBERT's token-level matching, the retrieval score is built from many local token matches rather than one averaged chunk vector. This gives the model more opportunity to preserve exact evidence around terms like "no history" and "penicillin," though it still may not perfectly reason over negation.
 
@@ -203,23 +207,397 @@ Regular embeddings do this too, but at the chunk level. ColBERT does it at the t
 - Legal contracts: "The tenant shall not be liable for damages caused by the landlord's failure to maintain the property, except where such failure results from the tenant's own negligence." A search for "tenant liable for damages" needs to distinguish the exceptions and conditions, not just match on overlapping words.
 - Medical records: Negations like "no history of X" versus affirmations like "history of X" completely flip the meaning, but the words overlap heavily.
 - Scientific literature with technical qualifiers: "This treatment shows promise in mice models but has not been validated in human clinical trials." A query like "treatment effective in humans" should not strongly match this chunk, even though most of the relevant words appear.
-- Code documentation with version-specific caveats: "This function was deprecated in version 3.0; use new_function() instead." A query for "how to use this function" needs to recognize this is telling you *not* to use it.
+- Code documentation with version-specific caveats: "This function was deprecated in version 3.0; use new*function() instead." A query for "how to use this function" needs to recognize this is telling you \_not* to use it.
 
 **Practical decision guide:**
 
-| Technique | Best for | Tradeoff |
-| --- | --- | --- |
-| Regular chunk embeddings | General FAQ, blogs, product docs, and search where "roughly relevant" is acceptable | Fast and simple, but subtle negations or exceptions can be blurred by pooling |
-| Semantic chunking with overlap | Default baseline for most RAG systems | Usually strong enough, but chunk boundaries and overlap still need tuning |
-| Late chunking | Cases where broader document context improves each chunk's meaning, while keeping normal single-vector retrieval | Richer chunk vectors, but needs a long-context embedding model and still pools into one vector |
-| ColBERT | Exact passage-level precision and fine-grained term interactions | Better token-level evidence matching, but more storage and retrieval complexity |
-| Cross-encoder or LLM reranker | Final top results need stronger reasoning over negation, exceptions, or entailment | More accurate reranking, but slower and usually applied only after first-stage retrieval |
-| Hybrid search | Exact terms, IDs, names, legal clauses, financial metrics, or rare vocabulary matter | Handles lexical precision better, but requires score fusion or result merging |
+| Technique                      | Best for                                                                                                         | Tradeoff                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Regular chunk embeddings       | General FAQ, blogs, product docs, and search where "roughly relevant" is acceptable                              | Fast and simple, but subtle negations or exceptions can be blurred by pooling                  |
+| Semantic chunking with overlap | Default baseline for most RAG systems                                                                            | Usually strong enough, but chunk boundaries and overlap still need tuning                      |
+| Late chunking                  | Cases where broader document context improves each chunk's meaning, while keeping normal single-vector retrieval | Richer chunk vectors, but needs a long-context embedding model and still pools into one vector |
+| ColBERT                        | Exact passage-level precision and fine-grained term interactions                                                 | Better token-level evidence matching, but more storage and retrieval complexity                |
+| Cross-encoder or LLM reranker  | Final top results need stronger reasoning over negation, exceptions, or entailment                               | More accurate reranking, but slower and usually applied only after first-stage retrieval       |
+| Hybrid search                  | Exact terms, IDs, names, legal clauses, financial metrics, or rare vocabulary matter                             | Handles lexical precision better, but requires score fusion or result merging                  |
 
 For most general-purpose search, semantic chunking with overlap does a good job because subtle negations, exceptions, and high-cost misreadings are less common, and being "roughly right" is acceptable.
 
 The lesson is essentially: use semantic chunking with overlap as the default baseline; add hybrid search when exact terms matter; use late chunking when wider context would make each chunk embedding better; reach for ColBERT when token-level matching is worth the extra cost; and use a reranker when the final ordering needs stronger reasoning over nuance.
 
+---
+
+## Cross-encoder re-ranking
+
+### Why we installed `nltk` and `sentence-transformers`
+
+`nltk` is for classic text processing in keyword search. In this project it is used for `PorterStemmer`, which reduces related word forms toward a shared stem. That helps BM25 / keyword search match terms more flexibly after tokenization, punctuation cleanup, and stop-word filtering.
+
+`sentence-transformers` is for neural semantic search. In this project it loads embedding models like `all-MiniLM-L6-v2`, turns movie descriptions or chunks into vectors, and lets us compare query/document vectors with cosine similarity. It also supports cross-encoders, which are useful for re-ranking.
+
+### How BERT models work
+
+At a high level, BERT turns text into context-aware token vectors.
+
+First, the text is tokenized. Sometimes tokens are whole words, sometimes they are word pieces.
+
+```text
+"Paddington loves marmalade"
+```
+
+might become:
+
+```text
+[CLS], Paddington, loves, marmalade, [SEP]
+```
+
+`[CLS]` is a special start token. `[SEP]` marks the end or separates two texts.
+
+Each token starts as a vector. At first, this is just a learned lookup:
+
+```text
+Paddington -> initial vector
+loves      -> initial vector
+marmalade  -> initial vector
+```
+
+BERT also adds positional information, because otherwise it would not know word order.
+
+The core trick is self-attention. Each token looks at the other tokens and decides which ones matter for its meaning.
+
+In:
+
+```text
+bear in the woods
+```
+
+the token "bear" attends to words like "woods", so it leans animal/movie-ish.
+
+In:
+
+```text
+bear the responsibility
+```
+
+the token "bear" attends to "responsibility", so it leans toward "carry" or "endure."
+
+That is why BERT outputs contextual token vectors. Same word, different sentence, different vector.
+
+BERT repeats this attention and transformation process many times across transformer layers. Each layer refines the token vectors. Early layers tend to capture simpler patterns, while later layers capture more abstract relationships.
+
+At the end, BERT outputs one vector per token:
+
+```text
+[CLS]      -> vector
+Paddington -> vector
+loves      -> vector
+marmalade  -> vector
+[SEP]      -> vector
+```
+
+Then what happens depends on the task.
+
+For bi-encoder semantic search:
+
+```text
+BERT token vectors -> pooling -> one sentence/chunk vector -> cosine similarity
+```
+
+For cross-encoder re-ranking:
+
+```text
+query + document -> BERT token vectors -> classifier/regression head -> relevance score
+```
+
+The simplest mental model:
+
+```text
+BERT = context-aware token vector machine
+Pooling = token vectors -> one text vector
+Classifier/regression head = BERT output -> task-specific prediction
+```
+
+### Bi-encoder
+
+A bi-encoder is what the semantic search currently uses.
+
+It handles the query and document separately:
+
+```text
+query -> BERT -> pooling -> query vector
+doc   -> BERT -> pooling -> doc vector
+query vector + doc vector -> cosine similarity
+```
+
+Pooling is needed because BERT does not naturally output one vector for a whole sentence or chunk. It outputs one contextual vector per token.
+
+These are contextual token vectors, not simple dictionary definitions of each word. The vector for a token depends on the surrounding words in that specific input.
+
+For example, the token vector for "bear" will be different in:
+
+```text
+bear in the woods
+bear the responsibility
+Paddington Bear
+```
+
+BERT produces a different context-aware vector for "bear" in each case because the surrounding words change what the token means.
+
+Example:
+
+```text
+Paddington  -> [0.2, 0.9, -0.1, ...]
+loves       -> [0.4, 0.1,  0.7, ...]
+marmalade   -> [0.8, 0.3,  0.5, ...]
+```
+
+That gives multiple token vectors, but semantic search wants one vector for the whole query/chunk so it can do:
+
+```text
+query vector vs document vector
+```
+
+Pooling means combining many token vectors into one vector. The simplest version is mean pooling, where each vector dimension is averaged.
+
+Tiny fake example:
+
+```text
+Paddington -> [2, 4]
+loves      -> [4, 6]
+marmalade  -> [6, 8]
+```
+
+Mean pooling:
+
+```text
+first dimension:  (2 + 4 + 6) / 3 = 4
+second dimension: (4 + 6 + 8) / 3 = 6
+```
+
+Pooled sentence vector:
+
+```text
+[4, 6]
+```
+
+So:
+
+```text
+BERT: token vectors
+pooling: all token vectors -> one chunk vector
+```
+
+Useful mental model:
+
+```text
+Pooling = summarizing all token vectors into one vector.
+```
+
+Common pooling methods:
+
+- Mean pooling: average all token vectors into one vector. This is common for sentence-transformer style embeddings because it uses information from every token.
+- CLS pooling: take only the final vector for the special `[CLS]` token at the start of the input. BERT-style models often use `[CLS]` as a whole-input summary for classification tasks.
+- Max pooling: take the strongest value per vector dimension across all token vectors. This is less common in this project, but it is another way to collapse many token vectors into one.
+
+Example of CLS pooling:
+
+```text
+[CLS]      -> [0.7, 0.2, 0.9, ...]
+Paddington -> [0.2, 0.9, -0.1, ...]
+loves      -> [0.4, 0.1,  0.7, ...]
+marmalade  -> [0.8, 0.3,  0.5, ...]
+```
+
+With CLS pooling:
+
+```text
+sentence vector = final [CLS] vector
+```
+
+With mean pooling:
+
+```text
+sentence vector = average([CLS], Paddington, loves, marmalade)
+```
+
+For sentence embeddings, mean pooling often works better than raw CLS pooling unless the model was trained to make the CLS vector especially useful.
+
+This is also why details can get blurred. If one token says "no" and another says "allergy," averaging everything into one vector may not preserve the exact relationship as well as a model that looks at token interactions directly.
+
+This is fast because document vectors can be precomputed once and saved. At search time, only the query needs to be embedded, then compared against stored vectors.
+
+The tradeoff is that the query and document do not see each other until the final cosine similarity step. That can miss subtle interactions like negation, exceptions, or the exact role of a word in context.
+
+### Cross-encoder
+
+A cross-encoder takes the query and document together:
+
+```text
+query + document -> BERT -> classifier/regression head -> relevance score
+```
+
+Instead of creating two separate vectors and comparing them, it asks:
+
+> Given this exact query and this exact document, how relevant is this pair?
+
+Because both texts are processed together, query words can directly interact with document words inside the transformer. This usually gives better relevance judgments than a bi-encoder, especially for subtle matches.
+
+The output is already a relevance score, so there is no cosine similarity step.
+
+The classifier/regression head is a small prediction layer attached to the top of BERT. BERT produces contextual token vectors for the combined query/document input. The head takes the final representation, often the `[CLS]` vector, and maps it to the thing we want to predict.
+
+For a cross-encoder input:
+
+```text
+[CLS] query [SEP] document [SEP]
+```
+
+BERT processes the whole thing and outputs contextual vectors:
+
+```text
+[CLS]      -> vector
+query toks -> vectors
+doc toks   -> vectors
+```
+
+The classifier/regression head is usually a small neural network layer that takes the final `[CLS]` vector as the summary of the whole query-document pair.
+
+So:
+
+```text
+[CLS] vector -> small prediction layer -> score
+```
+
+A very simplified version:
+
+```text
+score = weight_vector · cls_vector + bias
+```
+
+That means:
+
+- multiply parts of the `[CLS]` vector by learned weights
+- add them up
+- add a bias
+- optionally pass through an activation like sigmoid
+
+For classification, the head might output categories:
+
+```text
+relevant vs not relevant
+```
+
+For regression/ranking, the head outputs a number:
+
+```text
+relevance score = 0.83
+```
+
+So in cross-encoder reranking:
+
+```text
+[CLS] query [SEP] document [SEP] -> BERT -> head -> relevance score
+```
+
+The head is trained on examples of query/document pairs, so it learns patterns like "this document answers the query well" or "these words overlap but the meaning does not match."
+
+Important part: the head is small. Most of the "understanding" comes from BERT processing the query and document together. The head just converts that rich representation into the final relevance score.
+
+### Why cross-encoders are used for re-ranking
+
+Cross-encoders are accurate but expensive at scale. If there are 5,000 movies and one query, a cross-encoder would need to run once for every query/movie pair:
+
+```text
+(query, movie 1)
+(query, movie 2)
+...
+(query, movie 5000)
+```
+
+That is too slow compared with embedding search.
+
+The normal pipeline is:
+
+```text
+1. Use BM25 / semantic search / RRF to get top candidates.
+2. Use a cross-encoder to rescore only those candidates.
+3. Sort by the cross-encoder score.
+```
+
+This is the same shape as the LLM reranker, except the scorer is a specialized relevance model instead of a general chat model.
+
+### LLM reranker vs cross-encoder
+
+The current LLM reranker does this:
+
+```text
+Prompt: query + movie
+LLM: "8.5"
+```
+
+A cross-encoder does this:
+
+```text
+model.predict([(query, movie)])
+-> relevance score
+```
+
+The cross-encoder is less flexible than an LLM, but faster and cheaper. It only has one job: take a query/document pair and output a relevance score. That is why it can be thought of as a regression model.
+
+### Where this fits
+
+Current stack:
+
+```text
+BM25: exact lexical matching
+semantic bi-encoder: concept matching with vectors
+RRF / weighted hybrid: combine retrieval signals
+LLM reranker: expensive final judgment
+cross-encoder reranker: cheaper/faster final judgment
+```
+
+The clean mental model:
+
+- Use `nltk` / BM25 when exact words matter.
+- Use bi-encoder embeddings when concepts matter and speed matters.
+- Use RRF / hybrid search when both exact words and semantic meaning matter.
+- Use cross-encoder re-ranking when top candidates are decent but ordering needs to improve.
+- Use LLM re-ranking when flexible judgment matters enough to accept cost, latency, and API limits.
+
+Cross-encoder re-ranking is the practical middle ground between semantic search and LLM re-ranking.
+
 ## Keyword vs Semantic
+
 Use semantic for searching concepts - and other techniques for accuracy
 Usekeyword for exact / string results
+
+## Cross-encoder fine-tuning
+
+A fast way to get up and running with a re-ranker is to use the Cohere API or one of its competitors. Typically these APIs use cross-encoders.
+https://docs.cohere.com/reference/about
+
+The second major advantage of cross-encoders is that they can be fine-tuned on your specific domain relatively easily. You can train them on your own query-document pairs to learn the exact relevance patterns for your use case, and they are cheaper and faster than LLMs.
+https://www.ibm.com/think/topics/fine-tuning
+
+## The data problem
+
+FAB v1.1 has 40 public questions. Even the full private set is 537 questions. That is not enough to fine-tune a cross-encoder from scratch — you'd typically want thousands of labelled query-passage pairs to get meaningful signal. So the benchmark itself cannot be your training data.
+
+## Where the training data would actually come from
+
+**Option 1 — Synthetic generation from the filings themselves.** You already have EDGAR. For any company in the benchmark, you can download their 10-Ks, 10-Qs, and 8-Ks, run your ingestion pipeline to generate chunks, then use an LLM to generate synthetic question-passage pairs: "given this passage, what question would this answer?" You'd generate hundreds of pairs per filing, giving you thousands of training examples at near-zero cost. This is the standard approach when domain data is scarce — it's called **LLM-augmented training data generation** and there is citable literature on it (GPL — Generative Pseudo Labelling, Wang et al. 2022).
+
+**Option 2 — Existing financial QA datasets as a proxy.** FinQA (Chen et al. 2021) has 8,281 expert-annotated financial question-answer pairs over earnings reports, with gold evidence passages. That is ready-made cross-encoder training data for financial document relevance. Not perfectly aligned to FAB's question types but close enough for domain adaptation.
+
+**Option 3 — Hard negative mining from your own pipeline.** Run your MVP1 pipeline on the 40 public FAB questions. For each question, your hybrid search will return a ranked list. The passages ranked highly but not containing the correct answer are your **hard negatives** — exactly what cross-encoder fine-tuning needs. This is the highest-signal training data you can get because it is specific to your pipeline's failure modes. But you need a working pipeline first.
+
+## Honest assessment for your dissertation
+
+Fine-tuning a cross-encoder is a defensible contribution but a significant one that requires:
+
+- A working ingestion pipeline first
+- A data generation or curation step
+- Training infrastructure
+- Ablation showing it improves over the generic model
+
+Given your timeline (code stopping ~22 August), this is only worth pursuing if MVP1 is done early and the generic cross-encoder is clearly the bottleneck. If your accuracy is stuck at 60% and error analysis shows the right passage is being retrieved but ranked poorly, fine-tuning is the fix. If the right passage is not being retrieved at all, better chunking or query decomposition is the fix — and fine-tuning won't help.
+wh
