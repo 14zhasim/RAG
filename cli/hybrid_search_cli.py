@@ -64,9 +64,11 @@ def main() -> None:
                 document = result["document"]
                 print(f"{i}. {document['title']}")
                 if "Re-rank Score" in result:
-                    print(f"   Re-rank Score: {result['Re-rank Score']:.3f}/10")    
+                    print(f"   Re-rank Score: {result.get('Re-rank Score', 0):.3f}/10")    
                 if "Re-rank Rank" in result:
-                    print(f"   Re-rank Rank: {result['Re-rank Rank']}")  
+                    print(f"   Re-rank Rank: {result.get('Re-rank Rank', 0)}")  
+                if "Cross Encoder Score" in result:
+                    print(f"   Cross Encoder Score: {result.get('Cross Encoder Score', 0)}:.3f")  
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 print(f"   BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}")
                 print(f"   {document['description'][:100]}...")            

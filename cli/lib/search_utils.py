@@ -17,7 +17,7 @@ HYBRID_SEARCH_LIMIT = 5
 RRF_SEARCH_LIMIT = 5
 RRF_SEARCH_PARAMETER = 60
 SEARCH_ENHANCEMENT_METHODS = ["spell", "rewrite", "expand"]
-RERANK_ENHANCEMENT_METHODS = ["individual", "batch"]
+RERANK_ENHANCEMENT_METHODS = ["individual", "batch", "cross_encoder"]
 
 
 def load_movies():

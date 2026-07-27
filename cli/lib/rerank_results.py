@@ -4,6 +4,7 @@ from openai import OpenAI
 import re
 import time
 import json
+from sentence_transformers import CrossEncoder
 
 
 load_dotenv()
@@ -138,7 +139,29 @@ def batch_rerank(query: str, results: list[dict]) -> list[dict]:
         del result["_rerank_sort_key"]
 
     return sorted_results
-    
+
+def cross_encoder_rerank(query: str, results: list[dict]) -> list[dict]:
+    cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
+
+    pairs = []
+    for result in results:
+        doc = result["document"]
+        pairs.append([
+            query,
+            f"{doc.get('title', '')} - {doc.get('description', '')}",
+        ])
+
+    scores = cross_encoder.predict(pairs)
+
+    for result, score in zip(results, scores):
+        result["Cross Encoder Score"] = float(score) 
+        #convert to float as score from .predict() could be e.g. numpy
+
+    return sorted(
+        results,
+        key=lambda item: item["Cross Encoder Score"],
+        reverse=True,
+    )
 
 def rerank_results(method, query: str, results: list[dict]) -> list[dict]:
     match method:
@@ -146,5 +169,7 @@ def rerank_results(method, query: str, results: list[dict]) -> list[dict]:
             return individual_rerank(query, results)
         case "batch":
             return batch_rerank(query, results)
+        case "cross_encoder":
+            return cross_encoder_rerank(query, results)
         case _:
             return results
