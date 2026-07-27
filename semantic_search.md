@@ -18,6 +18,16 @@ To prompt LLMs in the best way, use: https://platform.claude.com/docs/en/build-w
 
 - use LLMs to clean search queries before performing them
 
+## Testing
+There are different evaluation methods
+
+With 'Golden Dataset', I think that might actually be quite useful for my use case. Under the assumption that I want to dictate relevant documents before exploring them, it would be appropriate to construct a golden dataset of the correct SEC filings to check!
+- would involve me manually going through all relevant questions and identifying correct filings to use
+- would consist of a query and a list of relevant SEC documents
+
+
+
+
 ## embedding-driven boundary detection
 
 - create embedding for each sentence in document

@@ -4,6 +4,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MOVIE_PATH = PROJECT_ROOT/'data'/'movies.json'
 STOP_WORD_PATH = PROJECT_ROOT/'data'/'stopwords.txt'
+GOLDEN_PATH = PROJECT_ROOT/'data'/'golden_dataset.json'
 DEFAULT_SEARCH_LIMIT = 5
 BM25_K1 = 1.5
 BM25_B = 0.75
@@ -40,3 +41,8 @@ def format_search_result(doc_id, title, document, score, metadata=None):
     }
 
 STOPWORDS = load_stop_words()
+
+def load_test():
+    with open(GOLDEN_PATH, 'r') as f:
+        data = json.load(f)
+        return data["test_cases"]
