@@ -35,9 +35,11 @@ def main() -> None:
                 relevant_result_count += 1
 
         precision = relevant_result_count / len(results)
+        recall = relevant_result_count / len(answers)
 
         print(f"- Query: {query}")
         print(f"  - Precision@{limit}: {precision:.4f}")
+        print(f"  - Recall@{limit}: {recall:.4f}")
         print("  - Retrieved:", ', '.join(result_titles))
         print("  - Relevant:", ', '.join(answers))
 
