@@ -1,7 +1,7 @@
 import argparse
 from lib.rag_prompt import rag_command
 from lib.search_utils import RRF_SEARCH_LIMIT
-from lib.summarize_command import summarize_command
+from lib.summarize_command import citations_command, summarize_command
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Retrieval Augmented Generation CLI")
@@ -15,6 +15,10 @@ def main() -> None:
     summarize_parser = subparsers.add_parser("summarize", help="Perform AI-generated summary")
     summarize_parser.add_argument("query", type=str, help="Search query for RAG")
     summarize_parser.add_argument("--limit", type=int, default=RRF_SEARCH_LIMIT, help="search result limit")
+
+    citations_parser = subparsers.add_parser("citations", help="Perform RAG with citation-aware answer")
+    citations_parser.add_argument("query", type=str, help="Search query for RAG")
+    citations_parser.add_argument("--limit", type=int, default=RRF_SEARCH_LIMIT, help="search result limit")
 
     args = parser.parse_args()
 
@@ -34,6 +38,14 @@ def main() -> None:
                 print(f"  - {document['title']}")
             print()
             print("LLM Summary:")
+            print(result["answer"])
+        case "citations":
+            result = citations_command(args.query, args.limit)
+            print("Search Results:")
+            for document in result["search_results"]:
+                print(f"- {document['title']}")
+            print()
+            print("LLM Answer:")
             print(result["answer"])
         case _:
             parser.print_help()
