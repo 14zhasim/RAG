@@ -3,6 +3,7 @@ from lib.hybrid_search import normalize_score, HybridSearch
 from lib.search_utils import DEFAULT_ALPHA, HYBRID_SEARCH_LIMIT, load_movies, RRF_SEARCH_LIMIT, RRF_SEARCH_PARAMETER, SEARCH_ENHANCEMENT_METHODS, RERANK_ENHANCEMENT_METHODS
 from lib.enhance_query import enhance_query
 from lib.rerank_results import rerank_results
+from lib.evaluate_results import evaluate_results
 import logging
 from logging_config import setup_logging
 
@@ -27,7 +28,7 @@ def main() -> None:
     rrf_search_parser.add_argument("--limit", type=int, default=RRF_SEARCH_LIMIT, help="Hybrid search result limit")
     rrf_search_parser.add_argument("--enhance", type=str, choices=SEARCH_ENHANCEMENT_METHODS, help="Query enhancement method")
     rrf_search_parser.add_argument("--rerank-method", type=str, choices=RERANK_ENHANCEMENT_METHODS, help="Query reranking enhancement method")
-
+    rrf_search_parser.add_argument("--evaluate", action="store_true", help="Trigger LLM to evaluate relevance of search results")
 
     args = parser.parse_args()
     logger.debug('query=%s', args.query)
@@ -88,6 +89,13 @@ def main() -> None:
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 print(f"   BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}")
                 print(f"   {document['description'][:100]}...")            
+
+            if args.evaluate:
+                llm_eval = evaluate_results(args.query, results)
+                for i, result in enumerate(results, start=1):
+                    title = result["document"]["title"]
+                    print(f"{i}. {title}: {llm_eval[i - 1]}/3")
+                
 
         case _:
             parser.print_help()

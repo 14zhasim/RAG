@@ -5,10 +5,10 @@ import re
 import time
 import json
 from sentence_transformers import CrossEncoder
+from .search_utils import MODEL
 
 
 load_dotenv()
-model = "openrouter/free"
 
 
 def get_client():
@@ -33,7 +33,7 @@ def get_rerank_score(prompt: str) -> str:
 
     client = get_client()
     response = client.chat.completions.create(
-        model=model,
+        model=MODEL,
         messages=message,
     )
 
