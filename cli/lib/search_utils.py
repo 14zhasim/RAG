@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+LOGS_PATH = PROJECT_ROOT/'cli'/'logs'
 MOVIE_PATH = PROJECT_ROOT/'data'/'movies.json'
 STOP_WORD_PATH = PROJECT_ROOT/'data'/'stopwords.txt'
 GOLDEN_PATH = PROJECT_ROOT/'data'/'golden_dataset.json'

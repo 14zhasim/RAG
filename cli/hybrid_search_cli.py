@@ -3,8 +3,13 @@ from lib.hybrid_search import normalize_score, HybridSearch
 from lib.search_utils import DEFAULT_ALPHA, HYBRID_SEARCH_LIMIT, load_movies, RRF_SEARCH_LIMIT, RRF_SEARCH_PARAMETER, SEARCH_ENHANCEMENT_METHODS, RERANK_ENHANCEMENT_METHODS
 from lib.enhance_query import enhance_query
 from lib.rerank_results import rerank_results
+import logging
+from logging_config import setup_logging
 
 def main() -> None:
+    setup_logging(True)
+    logger = logging.getLogger(__name__)
+
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -25,6 +30,7 @@ def main() -> None:
 
 
     args = parser.parse_args()
+    logger.debug('query=%s', args.query)
 
     match args.command:
         case "normalize":
@@ -50,14 +56,24 @@ def main() -> None:
             if args.enhance:
                 enhanced_query = enhance_query(args.query, args.enhance)
                 print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{enhanced_query}'\n")
+                logger.debug("Enhanced query (%s): '%s' -> '%s'", args.enhance, args.query, enhanced_query)
                 results = hybrid_search.rrf_search(enhanced_query, args.k, limit)
             else:
                 results = hybrid_search.rrf_search(args.query, args.k, limit)
+            for result in results:
+                logger.debug(
+                    "Search result for the query: %s %s %s %s",
+                    result["document"]["title"],
+                    result["bm25_rank"],
+                    result["semantic_rank"],
+                    result["rrf_score"],
+                )
             
             if args.rerank_method:
                 print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
                 unfilitered_results = rerank_results(args.rerank_method, args.query, results)
                 results = unfilitered_results[:args.limit]
+                logger.debug("Search results for the query: %s", results)
             print(f"Reciprocal Rank Fusion Results for '{args.query}' (k={args.k}):")
 
             for i, result in enumerate(results, start=1):

@@ -9,6 +9,7 @@ cache/
 
 # data files
 /data/
+/cli/logs
 
 # Virtual environments
 .venv
