@@ -8,7 +8,7 @@ def format_documents(results: list[dict]) -> list[str]:
     for result in results:
         document = result["document"]
         formatted_results.append(
-            f'{document.get("title", "")} - {document.get("description", "")[:300]}'
+            f'{document.get("title", "")} - {document.get("description", "")}'
         )
     return formatted_results
 
@@ -18,7 +18,7 @@ def format_citation_documents(results: list[dict]) -> list[str]:
     for i, result in enumerate(results, start=1):
         document = result["document"]
         formatted_results.append(
-            f'[{i}] {document.get("title", "")} - {document.get("description", "")[:300]}'
+            f'[{i}] {document.get("title", "")} - {document.get("description", "")}'
         )
     return formatted_results
 
@@ -88,11 +88,43 @@ def answer_with_citations(query: str, results: list[dict]) -> str:
     return call_llm(prompt)
 
 
+def answer_question(question: str, results: list[dict]) -> str:
+    context = "\n".join(format_documents(results))
+    prompt = f"""Answer the user's question based on the provided movies that are available on Webflyx, a streaming service.
+
+    Question: {question}
+
+    Documents:
+    {context}
+
+    Instructions:
+    - Answer questions directly and concisely
+    - Be casual and conversational
+    - Don't be cringe or hype-y
+    - Talk like a normal person would in a chat conversation
+
+    Answer:"""
+
+    return call_llm(prompt)
+
+
 def summarize_command(query: str, limit: int) -> dict:
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
     results = hybrid_search.rrf_search(query, RRF_SEARCH_PARAMETER, limit)
     answer = summarize(query, results)
+
+    return {
+        "search_results": [result["document"] for result in results],
+        "answer": answer,
+    }
+
+
+def question_command(question: str, limit: int) -> dict:
+    movies = load_movies()
+    hybrid_search = HybridSearch(movies)
+    results = hybrid_search.rrf_search(question, RRF_SEARCH_PARAMETER, limit)
+    answer = answer_question(question, results)
 
     return {
         "search_results": [result["document"] for result in results],
