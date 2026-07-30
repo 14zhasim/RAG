@@ -10,6 +10,8 @@ wheels/
 # data files
 /data/
 /cli/logs
+/course_source/
+/course_notes/PLAN.md
 
 # Virtual environments
 .venv
