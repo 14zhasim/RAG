@@ -6,7 +6,7 @@
 | ------- | ------- | ------- |
 | Term frequency | `TF(term, doc) = count(term in doc)` | How many times a token appears in one document |
 | Document frequency | `DF(term) = count(docs containing term)` | How many documents contain the token at least once |
-| Inverse document frequency | `IDF(term) = log((N + 1) / (DF(term) + 1))` | Higher when a token appears in fewer documents |
+| Inverse document frequency | `IDF(term) = log((N + 1) / (DF(term) + 1))` | Higher when a token appears in fewer documents, N = total number of docs, + 1 to stop dividing by 0 |
 | TF-IDF | `TF-IDF(term, doc) = TF(term, doc) * IDF(term)` | Higher when a token is frequent in this document and rare overall |
 
 ## Lessons Learned
@@ -19,7 +19,7 @@
   - `pickle` caching lets later commands load prepared structures instead of rebuilding.
 - **TF:** measures local importance.
   - `TF(term, doc)` is how many times the term appears in one document.
-- **IDF:** measures global rarity.
+- **IDF:** is a measure of how many documents contain a term.
   - `IDF(term)` is higher when fewer documents contain the term.
   - This reduces the value of common dataset-specific words.
 - **TF-IDF:** combines both signals.

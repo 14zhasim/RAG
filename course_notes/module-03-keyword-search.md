@@ -4,10 +4,10 @@
 
 | Concept | Formula | Meaning |
 | ------- | ------- | ------- |
-| Basic TF-IDF IDF | `log(N / df)` | Earlier IDF baseline; fails when `df = 0` and can overvalue extremely rare terms |
-| BM25 IDF | `log((N - df + 0.5) / (df + 0.5) + 1)` | Uses smoothing so rare/common terms produce more controlled scores |
-| BM25 TF saturation | `(tf * (k1 + 1)) / (tf + k1)` | Makes repeated terms give diminishing returns |
-| Length normalization | `1 - b + b * (doc_length / avg_doc_length)` | Increases the denominator for long documents and lowers it for short documents |
+| Basic IDF | `log((N + 1)/(df + 1))` | Earlier IDF baseline; fails when `df = 0` and can overvalue extremely rare terms |
+| BM25 IDF | `log((N - df + 0.5) / (df + 0.5) + 1)` | Uses smoothing so rare/common terms produce more controlled scores, using 0.5 constant, and numerator only has number docs WITHOUT term |
+| BM25 TF saturation | `(tf * (k1 + 1)) / (tf + k1)` | Makes repeated terms give diminishing returns, normally `k1=1.5`, tends to (k1 + 1)  as tf -> ∞|
+| Length normalization | `1 - b + b * (doc_length / avg_doc_length)` | Increases the denominator for long documents and lowers it for short documents, `b=0.75` is normal practice |
 | BM25 TF with length norm | `(tf * (k1 + 1)) / (tf + k1 * length_norm)` | Combines term saturation with document length adjustment |
 | Single term BM25 | `BM25(term, doc) = bm25_tf * bm25_idf` | Score for one query token in one document |
 | Full query BM25 | `score(doc, query) = sum(BM25(term, doc) for term in query_tokens)` | Total score for ranking documents |

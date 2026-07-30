@@ -3,16 +3,22 @@
 ## Lessons Learned
 
 - **Whole-document embeddings:** can be too broad.
-  - If a description covers many topics, one vector can blur the specific passage the user needs.
+  - If a description covers many topics or is very long, one vector can blur the specific passage the user needs.
+  - Leads to: token limits for LLMs, poor precision (as specific concepts get 'averaged out' - semantic dilution), irrelevant matches
 - **Fixed-size chunking:** makes retrieval more local.
-  - It helps with token limits and semantic dilution.
+  - It helps with token limits, fast, predictable size.
   - Its weakness is that it can split important context across boundaries.
 - **Overlap and semantic chunking:** improve chunk quality.
   - Overlap repeats the end of one chunk at the start of the next.
-  - Semantic chunking splits around sentences instead of arbitrary words.
+    - check implementation for edge cases, below
+    - Determine overlap with own data, but good rule of thumb is `20%`
+  - Semantic chunking splits around sentences instead of arbitrary words (not actually semantic - just uses regex to split chunks by sentences).
+
 - **Chunked semantic search:** ranks movies by their best chunk.
   - Embed each chunk, score each chunk against the query, then keep the highest-scoring chunk per movie.
   - Metadata maps each chunk back to its movie, chunk index, and total chunk count.
+  - EDGE CASES: 
+    - view the chunks manually to see if chunked correctly: human writing has infinite edge cases
 - **ColBERT and late chunking:** are advanced alternatives.
   - They preserve more fine-grained context or precision than one normal chunk vector, but cost more complexity.
 

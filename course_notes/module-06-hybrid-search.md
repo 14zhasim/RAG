@@ -7,16 +7,16 @@
 | Min-max normalization | `(score - min_score) / (max_score - min_score)` | Converts scores to `0..1` within one result set |
 | Equal-score normalization | if `min_score == max_score`, return `1.0` for every score | Avoids division by zero when all scores are tied |
 | Weighted hybrid score | `alpha * bm25_score + (1 - alpha) * semantic_score` | Blends keyword and semantic evidence |
-| Keyword-only weighted search | `alpha = 1.0` | Hybrid score becomes BM25 score |
-| Semantic-only weighted search | `alpha = 0.0` | Hybrid score becomes semantic score |
 | RRF contribution | `1 / (k + rank)` | Gives higher-ranked results more credit |
 | RRF score | `sum(1 / (k + rank_i))` | Adds rank evidence from multiple search systems |
 
 Worked example for weighted search:
 
 ```text
+# Normalise scores for each document
+### normalised against set of scores for all documents in search result
+
 Min-max normalization = (score - min_score) / (max_score - min_score)
-- for each document, normalised against set of scores for all documents in search result
 normalized BM25 score = 0.80
 normalized semantic score = 0.30
 alpha = 0.70
@@ -46,13 +46,16 @@ rrf_score = 1 / (60 + 2) + 1 / (60 + 5)
   - Semantic search is better for topical or conceptual searches like "family friendly" or "survival in wilderness".
 - **Hybrid search:** combines both systems.
   - It improves coverage because a query can benefit from either exact terms or semantic meaning.
-- **Weighted search:** combines normalized scores.
-  - BM25 scores and cosine scores are not directly comparable, so each list is normalized first.
+  - **Candidate pools:** hybrid methods need more candidates than the final result limit.
+    - A document may not be top 5 in either individual system but may become strong after combination.
+  
+  <u>Types of hybrid search:</u>
+- **Weighted combination:** combines normalized scores.
+  - BM25 scores and cosine scores are not directly comparable, so each list is normalized first (against set of scores for all documents in search results).
   - `alpha` controls the blend: higher alpha favors keyword evidence, lower alpha favors semantic evidence.
 - **RRF:** combines ranks instead of scores.
   - It avoids raw-score comparability problems by rewarding documents that rank well in either system.
-- **Candidate pools:** hybrid methods need more candidates than the final result limit.
-  - A document may not be top 5 in either individual system but may become strong after combination.
+  - `k` controls how highly the top-ranked results get scored
 
 ---
 

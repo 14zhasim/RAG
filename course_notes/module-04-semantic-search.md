@@ -16,18 +16,34 @@
 - **Semantic search:** matches meaning, not just tokens.
   - It can retrieve conceptually related movies even when the exact query words do not appear.
 - **Embeddings:** represent text as vectors.
-  - Vector dimensions are learned mathematical coordinates, not human-readable labels.
+  - Vector dimensions are learned mathematical coordinates, not human-readable labels, each representing a characteristic of a token
   - Similar meanings should land near each other or point in similar directions.
-- **Shared embedding model:** documents and queries must use the same model.
+- **Documents and queries must share the same model.**
+  - embedding model leaderboard: https://huggingface.co/spaces/mteb/leaderboard
+  https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
   - Otherwise their vectors live in incompatible spaces.
   - This repo uses `all-MiniLM-L6-v2` as a small local starter model.
+- PROBLEM TO SOLVE: Given a query embedding, find the nearest document embeddings.
 - **Cosine similarity:** ranks vector matches.
   - Dot product measures alignment, but cosine similarity compares direction while controlling for vector length.
+  - most embedding models use cosine similarity, but make sure to check yours
 - **Two-phase search:** semantic search has a build phase and a query phase.
   - Build once: embed movie documents and cache `cache/movie_embeddings.npy`.
   - Query each time: embed the query, compare against document vectors, sort by similarity.
 - **Scale limit:** brute-force vector search does not scale forever.
+  - Brute force: compare query embedding against all stored embeddings - not scalable if have millions of embeddings
   - For large datasets, approximate indexes or vector databases are used to avoid scanning every vector.
+  - If there are 100M vectors and someone asks "how do I reset my password?", brute force can compare against every vector, but ANN indexes search a smaller candidate space.
+
+| Method | Category | Main Idea | Pros | Cons | Typical Use Cases |
+| ------ | -------- | --------- | ---- | ---- | ----------------- |
+| **HNSW** | ANN index | Build a graph connecting nearby vectors | Excellent recall; very fast queries; widely adopted | Higher memory usage; index construction can be slower, may not find absolute nearest vector (depends starting point, see diagram) | Default choice for many RAG systems, including Qdrant, Weaviate, Pinecone, and Milvus |
+| **IVF** | ANN index | Cluster vectors, then search only relevant clusters (query -> which centroid closest to query -> search centroid) | Scales well to large datasets; tunable speed vs. accuracy | May miss neighbors near cluster boundaries if too few clusters are searched | Millions to billions of vectors; often paired with PQ |
+| **LSH** | ANN index | Hash similar vectors into the same buckets (query -> which bucket does query hash to -> search bucket) | Simple; fast for some similarity measures; theoretical guarantees | Lower recall for modern dense embeddings; may need many hash tables | Older systems, specific similarity-search problems, and some research applications |
+| **PQ** | Compression | Compress vectors into compact codes | Greatly reduces memory; speeds up distance computations | Some accuracy loss due to quantization | Massive datasets; often combined with IVF as IVF-PQ |
+| **DiskANN** | ANN index | Use a graph optimized for SSD-resident data | Handles datasets larger than RAM while keeping high performance | More complex implementation; depends on fast storage | Billion-scale vector search when RAM is limited |
+
+
 
 ---
 
